@@ -88,26 +88,35 @@ def ask_chat_gpt(question):
         {"role": "system", "content": "You are a kind helpful assistant."}
     ]
 
-    while True:
-        message = question
-        if message:
-            messages.append(
-                {"role": "user", "content": message}
-            )
-            chat = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo", messages=messages
-            )
+    message = question
+    if message:
+        messages.append(
+            {"role": "user", "content": message}
+        )
+        chat = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo", messages=messages
+        )
 
-        reply = chat.choices[0].message.content
-        print(reply)
-        messages.append({"role": "system", "content": reply})
+    reply = chat.choices[0].message.content
+    print(reply)
+    messages.append({"role": "system", "content": reply})
 
 
-# Get WAV from microphone.
-record_wav()
+def main():
+    # Get WAV from microphone.
+    record_wav()
 
-# Convert audio into text.
-question = speech_to_text("input.wav")
+    # Convert audio into text.
+    question = speech_to_text("input.wav")
 
-# Send text to ChatGPT.
-ask_chat_gpt(question)
+    # Send text to ChatGPT.
+    ask_chat_gpt(question)
+
+    # Convert ChatGPT response into audio.
+    text_to_speech()
+
+    # Play audio of reponse.
+    # os.system("aplay result.wav")
+
+if __name__ == "__main__":
+    main()
