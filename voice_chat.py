@@ -60,7 +60,7 @@ def record_wav():
 
 def speech_to_text(speech_file):
     # setting Google credential
-    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'codelabsdemo-382716-fa8f8502bb82.json'
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'XXX.json'
 
     # create client instance
     client = speech.SpeechClient()
