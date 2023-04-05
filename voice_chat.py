@@ -7,87 +7,14 @@
 ################################################################
 import os
 import io
-import sys
-import asyncio
-import argparse
 import pyaudio
 import wave
+import openai
 from google.cloud import speech
 from google.cloud import texttospeech
-from ChatGPT_lite.ChatGPT import Chatbot
 
 
 gpt_response = ""
-
-
-def speech_to_text(speech_file):
-    client = speech.SpeechClient()
-
-    with io.open(speech_file, "rb") as audio_file:
-            content = audio_file.read()
-
-    audio = speech.RecognitionAudio(content=content)
-
-    config = speech.RecognitionConfig(
-        encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
-        language_code="en-US",
-    )
-
-    # Detects speech in the audio file
-    response = client.recognize(config=config, audio=audio)
-
-    stt = ""
-    for result in response.results:
-        stt += result.alternatives[0].transcript
-
-    return stt
-
-
-def ask_chat_gpt(args, prompt):
-    global gpt_response
-    chat = Chatbot(args.session_token, args.bypass_node)
-    
-    loop = asyncio.new_event_loop()
-    asyncio.set_event_loop(loop)
-    loop.run_until_complete(chat.wait_for_ready())
-    response = loop.run_until_complete(chat.ask(prompt))
-    chat.close()
-    loop.stop()
-    
-    gpt_response = response['answer']
-
-    return
-
-
-def text_to_speech(tts):
-    # Instantiates a client
-    client = texttospeech.TextToSpeechClient()
-
-    # Set the text input to be synthesized
-    synthesis_input = texttospeech.SynthesisInput(text=tts)
-
-    # Build the voice request, select the language code ("en-US") and the ssml
-    voice = texttospeech.VoiceSelectionParams(
-        language_code="en-US", ssml_gender=texttospeech.SsmlVoiceGender.FEMALE
-    )
-
-    # Select the type of audio file you want returned
-    audio_config = texttospeech.AudioConfig(
-        audio_encoding=texttospeech.AudioEncoding.LINEAR16
-    )
-
-    # Perform the text-to-speech request on the text input with the selected
-    # voice parameters and audio file type
-    response = client.synthesize_speech(
-        input=synthesis_input, voice=voice, audio_config=audio_config
-    )
-
-    # The response's audio_content is binary.
-    with open("result.wav", "wb") as out:
-        # Write the response to the output file.
-        out.write(response.audio_content)
-
-    return
 
 
 def record_wav():
@@ -131,17 +58,93 @@ def record_wav():
     return
 
 
+def speech_to_text(speech_file):
+    # setting Google credential
+    os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'codelabsdemo-382716-fa8f8502bb82.json'
+
+    # create client instance
+    client = speech.SpeechClient()
+
+    with io.open(speech_file, "rb") as audio_file:
+            content = audio_file.read()
+
+    audio = speech.RecognitionAudio(content=content)
+
+    config = speech.RecognitionConfig(
+        encoding=speech.RecognitionConfig.AudioEncoding.LINEAR16,
+        language_code="de-DE",
+    )
+
+    # Detects speech in the audio file
+    response = client.recognize(request={"config": config, "audio": audio})
+    for result in response.results:
+        print("Transcript: {}".format(result.alternatives[0].transcript))
+
+    stt = ""
+    for result in response.results:
+        stt += result.alternatives[0].transcript
+
+    return stt
+
+
+def ask_chat_gpt():
+    try:
+        OPENAI_API_KEY = os.environ['OPENAI_API_KEY']
+        print('ENV environment variable exists')
+    except KeyError:
+        print('ENV environment variable does not exist')
+
+    messages = [
+        {"role": "system", "content": "You are a kind helpful assistant."}
+    ]
+
+    while True:
+        message = input("User : ")
+        if message:
+            messages.append(
+                {"role": "user", "content": message}
+            )
+            chat = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo", messages=messages
+            )
+
+        reply = chat.choices[0].message.content
+        print(reply)
+        messages.append({"role": "system", "content": reply})
+
+
+def text_to_speech(tts):
+    # Instantiates a client
+    client = texttospeech.TextToSpeechClient()
+
+    # Set the text input to be synthesized
+    synthesis_input = texttospeech.SynthesisInput(text=tts)
+
+    # Build the voice request, select the language code ("en-US") and the ssml
+    voice = texttospeech.VoiceSelectionParams(
+        language_code="en-US", ssml_gender=texttospeech.SsmlVoiceGender.FEMALE
+    )
+
+    # Select the type of audio file you want returned
+    audio_config = texttospeech.AudioConfig(
+        audio_encoding=texttospeech.AudioEncoding.LINEAR16
+    )
+
+    # Perform the text-to-speech request on the text input with the selected
+    # voice parameters and audio file type
+    response = client.synthesize_speech(
+        input=synthesis_input, voice=voice, audio_config=audio_config
+    )
+
+    # The response's audio_content is binary.
+    with open("result.wav", "wb") as out:
+        # Write the response to the output file.
+        out.write(response.audio_content)
+
+    return
+
+
 def main():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('--session_token_file', type=str, default="openai_session.txt")
-    parser.add_argument('--bypass_node', type=str, default="https://gpt.pawan.krd")
-    args = parser.parse_args()
-
-    # Get OpenAI credentials from file.
-    text_file = open(args.session_token_file, "r")
-    args.session_token = text_file.read()
-    text_file.close()
-
     # Get WAV from microphone.
     record_wav()
 
@@ -149,9 +152,7 @@ def main():
     question = speech_to_text("input.wav")
     
     # Send text to ChatGPT.
-    print("Asking: {0}".format(question))
-    asyncio.coroutine(ask_chat_gpt(args, question))
-    print("Response: {0}".format(gpt_response))
+    ask_chat_gpt()
 
     # Convert ChatGPT response into audio.
     text_to_speech(gpt_response)
