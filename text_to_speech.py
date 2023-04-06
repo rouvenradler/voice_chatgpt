@@ -4,8 +4,7 @@ from google.cloud import texttospeech
 # setting Google credential
 os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'codelabsdemo-382716-fa8f8502bb82.json'
 
-
-tts = "Hallo, das ist mein erstes Sound Beispiel"
+tts = "Hallo, das ist mein zweites Sound Beispiel"
 
 # Instantiates a client
 client = texttospeech.TextToSpeechClient()
